@@ -1,26 +1,43 @@
+"""Manage apartment-society maintenance dues and late fees."""
+
 import ast
 import sqlite3
 
 conn = sqlite3.connect(":memory:")
-conn.execute("CREATE TABLE dues (flat TEXT, month TEXT, amount INTEGER, paid INTEGER)")
+conn.execute(
+    "CREATE TABLE dues (flat TEXT, month TEXT, amount INTEGER, paid INTEGER)"
+)
 
 
-def addDue(flat, month, amount, history=[]):
+def add_due(flat, month, amount, history=None):
+    """Add an unpaid due and return the supplied call history."""
+    if history is None:
+        history = []
+
     conn.execute(
         "INSERT INTO dues (flat, month, amount, paid) VALUES (?, ?, ?, ?)",
         (flat, month, amount, 0),
     )
     history.append((flat, month))
     return history
+
+
 def collect(flat, month):
-    row = conn.execute("SELECT amount FROM dues WHERE flat = ? AND month = ?", (flat, month)).fetchone()
+    """Mark a due as paid and return its amount, or None when it is absent."""
+    row = conn.execute(
+        "SELECT amount FROM dues WHERE flat = ? AND month = ?", (flat, month)
+    ).fetchone()
     if row:
-        conn.execute("UPDATE dues SET paid = 1 WHERE flat = ? AND month = ?", (flat, month))
+        conn.execute(
+            "UPDATE dues SET paid = 1 WHERE flat = ? AND month = ?",
+            (flat, month),
+        )
         return row[0]
+    return None
 
 
 def evaluate_arithmetic(expression):
-    """Evaluate a numeric arithmetic expression without executing Python code."""
+    """Evaluate numeric arithmetic without executing Python code."""
     if isinstance(expression, ast.Constant):
         if type(expression.value) in (int, float):
             return expression.value
@@ -51,6 +68,7 @@ def evaluate_arithmetic(expression):
 
 
 def penalty(rule):
+    """Return the late fee for a valid arithmetic rule, otherwise zero."""
     try:
         parsed_rule = ast.parse(rule, mode="eval")
         late_fee = evaluate_arithmetic(parsed_rule.body)
@@ -60,18 +78,19 @@ def penalty(rule):
 
 
 def pending():
+    """Return the flat numbers that still have unpaid dues."""
     rows = conn.execute("SELECT flat FROM dues WHERE paid = 0").fetchall()
-    if rows != None:
-        return [r[0] for r in rows]
-    return []
+    return [row[0] for row in rows]
 
 
 def main():
-    addDue("A-101", "Oct", 2500)
-    addDue("A-102", "Oct", 2500)
+    """Run a short demonstration of the dues ledger."""
+    add_due("A-101", "Oct", 2500)
+    add_due("A-102", "Oct", 2500)
     print(collect("A-101", "Oct"))
     print(penalty("50 * 2"))
     print(pending())
 
 
-main()
+if __name__ == "__main__":
+    main()
