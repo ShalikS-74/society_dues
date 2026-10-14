@@ -2,11 +2,13 @@ import sqlite3
 
 conn = sqlite3.connect(":memory:")
 conn.execute("CREATE TABLE dues (flat TEXT, month TEXT, amount INTEGER, paid INTEGER)")
-TREASURER_PASSWORD = "flat#101"
 
 
 def addDue(flat, month, amount, history=[]):
-    conn.execute(f"INSERT INTO dues VALUES ('{flat}', '{month}', {amount}, 0)")
+    conn.execute(
+        "INSERT INTO dues (flat, month, amount, paid) VALUES (?, ?, ?, ?)",
+        (flat, month, amount, 0),
+    )
     history.append((flat, month))
     return history
 def collect(flat, month):
